@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>8-Queens Simulator</title>
+    <style>
+        :root {
+            --dark-sq: #769656;
+            --light-sq: #eeeed2;
+            --highlight: #d63f3f; /* Red for conflicts */
+            --bg-color: #2c2c2c;
+            --text-color: #f0f0f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        h1 { margin-bottom: 10px; }
+        p { color: #aaa; margin-bottom: 20px; }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Chessboard Styling */
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            border: 5px solid #444;
+            user-select: none;
+        }
+
+        .square {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .square.white { background-color: var(--light-sq); color: black; }
+        .square.black { background-color: var(--dark-sq); color: black; }
+
+        /* Conflict Styling */
+        .square.conflict {
+            background-color: var(--highlight) !important;
+            color: white;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            transition: transform 0.1s;
+        }
+
+        button:active { transform: scale(0.95); }
+        button.reset { background-color: #f44336; }
+        button.solve { background-color: #2196F3; }
+
+        .status {
+            font-size: 1.2rem;
+            font-weight: bold;
+            height: 30px;
+        }
+        
+        .success { color: #4CAF50; }
+        .error { color: #ff5252; }
+
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <h1>8-Queens Challenge</h1>
+        <p>Place 8 queens so no two queens attack each other.</p>
+        
+        <div id="status" class="status">Queens placed: 0/8</div>
+
+        <div class="board" id="board">
+            </div>
+
+        <div class="controls">
+            <button class="reset" onclick="resetBoard()">Clear Board</button>
+            <button class="solve" onclick="solveGame()">Auto Solve</button>
+        </div>
+    </div>
+
+    <script>
+        const boardSize = 8;
+        const boardElement = document.getElementById('board');
+        const statusElement = document.getElementById('status');
+        let queens = []; // Array storing {row, col} of placed queens
+
+        // Initialize Board
+        function initBoard() {
+            boardElement.innerHTML = '';
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize; col++) {
+                    const square = document.createElement('div');
+                    const isDark = (row + col) % 2 === 1;
+                    square.className = `square ${isDark ? 'black' : 'white'}`;
+                    square.dataset.row = row;
+                    square.dataset.col = col;
+                    square.onclick = () => handleSquareClick(row, col);
+                    boardElement.appendChild(square);
+                }
+            }
+        }
+
+        // Handle User Click
+        function handleSquareClick(row, col) {
+            const existingIndex = queens.findIndex(q => q.row === row && q.col === col);
+            
+            if (existingIndex !== -1) {
+                // Remove queen
+                queens.splice(existingIndex, 1);
+            } else {
+                // Add queen (if less than 8)
+                if (queens.length < 8) {
+                    queens.push({ row, col });
+                }
+            }
+            updateBoardVisuals();
+        }
+
+        // Core Logic: Check for attacks
+        function checkConflicts() {
+            let conflicts = new Set(); // Store indices of squares in conflict
+
+            for (let i = 0; i < queens.length; i++) {
+                for (let j = i + 1; j < queens.length; j++) {
+                    const q1 = queens[i];
+                    const q2 = queens[j];
+
+                    const isSameRow = q1.row === q2.row;
+                    const isSameCol = q1.col === q2.col;
+                    const isDiagonal = Math.abs(q1.row - q2.row) === Math.abs(q1.col - q2.col);
+
+                    if (isSameRow || isSameCol || isDiagonal) {
+                        conflicts.add(`${q1.row},${q1.col}`);
+                        conflicts.add(`${q2.row},${q2.col}`);
+                    }
+                }
+            }
+            return conflicts;
+        }
+
+        // Update UI based on state
+        function updateBoardVisuals() {
+            // clear previous icons and classes
+            const squares = document.querySelectorAll('.square');
+            squares.forEach(sq => {
+                sq.textContent = '';
+                sq.classList.remove('conflict');
+            });
+
+            const conflicts = checkConflicts();
+            let isWin = (queens.length === 8 && conflicts.size === 0);
+
+            queens.forEach(q => {
+                const index = q.row * 8 + q.col;
+                const sq = squares[index];
+                sq.textContent = '♛'; // Queen Unicode
+                
+                if (conflicts.has(`${q.row},${q.col}`)) {
+                    sq.classList.add('conflict');
+                }
+            });
+
+            // Update Status Text
+            if (isWin) {
+                statusElement.textContent = "You Won! Solution Found.";
+                statusElement.className = "status success";
+            } else if (conflicts.size > 0) {
+                statusElement.textContent = "Conflict detected!";
+                statusElement.className = "status error";
+            } else {
+                statusElement.textContent = `Queens placed: ${queens.length}/8`;
+                statusElement.className = "status";
+            }
+        }
+
+        function resetBoard() {
+            queens = [];
+            updateBoardVisuals();
+        }
+
+        // Backtracking Algorithm for "Auto Solve"
+        function solveGame() {
+            resetBoard();
+            
+            // Helper function for recursion
+            function placeQueen(row) {
+                if (row === boardSize) return true; // Found solution
+
+                for (let col = 0; col < boardSize; col++) {
+                    // Check if safe
+                    let safe = true;
+                    for (let q of queens) {
+                        if (q.col === col || Math.abs(q.row - row) === Math.abs(q.col - col)) {
+                            safe = false;
+                            break;
+                        }
+                    }
+
+                    if (safe) {
+                        queens.push({ row, col });
+                        if (placeQueen(row + 1)) return true;
+                        queens.pop(); // Backtrack
+                    }
+                }
+                return false;
+            }
+
+            placeQueen(0);
+            updateBoardVisuals();
+        }
+
+        // Start
+        initBoard();
+
+    </script>
+</body>
+</html>
