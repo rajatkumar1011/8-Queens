@@ -151,16 +151,10 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.5rem; /* Queen size */
             user-select: none;
             transition: all 0.2s ease;
         }
         
-        /* Mobile adjustment for queen size */
-        @media (max-width: 450px) {
-            .square { font-size: 1.8rem; }
-        }
-
         .square.white { background-color: var(--board-light); }
         .square.black { background-color: var(--board-dark); }
 
@@ -168,16 +162,21 @@
 
         /* Queen Styling */
         .queen-icon {
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+            font-size: 3.5rem; /* Large unicode character */
+            line-height: 1;
+            color: #1D1D1F; /* Black pieces */
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
             animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            width: 70%;
-            height: 70%;
-            fill: #1D1D1F; /* Black pieces */
             pointer-events: none; /* Let clicks pass through to square */
+            display: block;
         }
         
+        @media (max-width: 450px) {
+            .queen-icon { font-size: 2.2rem; }
+        }
+
         .square.black .queen-icon {
-            fill: #FFFFFF; /* White/Light pieces on dark squares for contrast */
+            color: #FFFFFF; /* White/Light pieces on dark squares for contrast */
         }
 
         /* Conflict Styling */
@@ -436,32 +435,23 @@
             if (!squares || squares.length === 0) return;
 
             for (let sq of squares) {
-                sq.innerHTML = ''; // Clear SVG
+                sq.innerHTML = ''; // Clear content
                 sq.classList.remove('conflict');
             }
 
             const conflicts = checkConflicts();
             let isWin = (queens.length === 8 && conflicts.size === 0);
 
-            // Vector Queen Icon
-            const queenSvg = `
-                <svg class="queen-icon" viewBox="0 0 45 45" xmlns="http://www.w3.org/2000/svg">
-                    <g fill-rule="evenodd" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M8 12.5l5 3 5-3 5 3 5-3 5 3-5 23h-20z" fill="currentColor"/>
-                        <path d="M16 15.5l6.5-6.5 6.5 6.5" fill="none"/>
-                        <circle cx="8" cy="9" r="2.5" stroke="none" fill="currentColor"/>
-                        <circle cx="13" cy="15.5" r="2" stroke="none" fill="currentColor"/>
-                        <circle cx="23" cy="9" r="2.5" stroke="none" fill="currentColor"/>
-                        <circle cx="33" cy="15.5" r="2" stroke="none" fill="currentColor"/>
-                        <circle cx="38" cy="9" r="2.5" stroke="none" fill="currentColor"/>
-                    </g>
-                </svg>`;
-
             queens.forEach(q => {
                 const index = q.row * 8 + q.col;
                 if (index >= 0 && index < squares.length) {
                     const sq = squares[index];
-                    sq.innerHTML = queenSvg;
+                    
+                    // Create Queen Span using Unicode Character
+                    const span = document.createElement('span');
+                    span.className = 'queen-icon';
+                    span.textContent = '♛';
+                    sq.appendChild(span);
                     
                     if (conflicts.has(`${q.row},${q.col}`)) {
                         sq.classList.add('conflict');
