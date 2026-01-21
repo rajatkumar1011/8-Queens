@@ -2,116 +2,369 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>8-Queens Simulator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>8 Queens Puzzle</title>
+    <meta name="description" content="A modern, minimalistic 8-Queens puzzle solver.">
     <style>
+        /* --- Reset & Core Typography --- */
         :root {
-            --dark-sq: #769656;
-            --light-sq: #eeeed2;
-            --highlight: #d63f3f; /* Red for conflicts */
-            --bg-color: #2c2c2c;
-            --text-color: #f0f0f0;
+            /* Apple/Modern Web Palette */
+            --bg-color: #F5F5F7; /* Apple light grey */
+            --card-bg: #FFFFFF;
+            --text-primary: #1D1D1F;
+            --text-secondary: #86868B;
+            --accent-color: #0071E3; /* Apple Blue */
+            --accent-hover: #0077ED;
+            --danger-color: #FF3B30;
+            
+            /* Board Colors */
+            --board-light: #EBECD0;
+            --board-dark: #739552;
+            --conflict-overlay: rgba(255, 59, 48, 0.6);
+            --highlight-move: rgba(255, 255, 0, 0.5);
+
+            /* Spacing & Radius */
+            --radius-lg: 20px;
+            --radius-sm: 8px;
+            --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.05);
+            --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #000000;
+                --card-bg: #1C1C1E;
+                --text-primary: #F5F5F7;
+                --text-secondary: #A1A1A6;
+                --board-light: #B8C5CF; /* Muted blue-grey */
+                --board-dark: #505F6E;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
-            color: var(--text-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* --- Layout & Container --- */
+        main {
+            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
+            width: 100%;
+            padding: 20px;
+            max-width: 600px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
             margin: 0;
+            background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        h1 { margin-bottom: 10px; }
-        p { color: #aaa; margin-bottom: 20px; }
+        p.subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-top: 8px;
+            font-weight: 400;
+        }
 
-        .game-container {
-            display: flex;
-            flex-direction: column;
+        /* --- Status Indicator --- */
+        .status-pill {
+            display: inline-flex;
             align-items: center;
-            gap: 20px;
+            padding: 8px 16px;
+            background-color: var(--card-bg);
+            border-radius: 999px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
         }
 
-        /* Chessboard Styling */
+        .status-pill.success {
+            color: #34C759;
+            border-color: rgba(52, 199, 89, 0.2);
+            background-color: rgba(52, 199, 89, 0.05);
+        }
+
+        .status-pill.error {
+            color: var(--danger-color);
+            border-color: rgba(255, 59, 48, 0.2);
+            background-color: rgba(255, 59, 48, 0.05);
+        }
+
+        /* --- Chessboard --- */
+        .board-wrapper {
+            width: 100%;
+            aspect-ratio: 1;
+            background-color: var(--card-bg);
+            padding: 10px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 30px;
+            position: relative;
+        }
+
         .board {
             display: grid;
-            grid-template-columns: repeat(8, 60px);
-            grid-template-rows: repeat(8, 60px);
-            border: 5px solid #444;
-            user-select: none;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            touch-action: manipulation; /* Prevents double-tap zoom delay */
         }
 
         .square {
-            width: 60px;
-            height: 60px;
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 40px;
-            cursor: pointer;
-            transition: background-color 0.2s;
+            font-size: 2.5rem; /* Queen size */
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+        
+        /* Mobile adjustment for queen size */
+        @media (max-width: 450px) {
+            .square { font-size: 1.8rem; }
         }
 
-        .square.white { background-color: var(--light-sq); color: black; }
-        .square.black { background-color: var(--dark-sq); color: black; }
+        .square.white { background-color: var(--board-light); }
+        .square.black { background-color: var(--board-dark); }
+
+        .square:active { transform: scale(0.95); z-index: 10; }
+
+        /* Queen Styling */
+        .queen-icon {
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 70%;
+            height: 70%;
+            fill: #1D1D1F; /* Black pieces */
+            pointer-events: none; /* Let clicks pass through to square */
+        }
+        
+        .square.black .queen-icon {
+            fill: #FFFFFF; /* White/Light pieces on dark squares for contrast */
+        }
 
         /* Conflict Styling */
-        .square.conflict {
-            background-color: var(--highlight) !important;
-            color: white;
+        .square.conflict::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-color: var(--conflict-overlay);
+            animation: pulseRed 2s infinite;
+            pointer-events: none;
         }
 
-        /* Controls */
+        /* --- Controls --- */
         .controls {
             display: flex;
-            gap: 10px;
+            gap: 15px;
+            width: 100%;
+            justify-content: center;
         }
 
         button {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
             border: none;
-            border-radius: 5px;
-            background-color: #4CAF50;
-            color: white;
-            transition: transform 0.1s;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        button:active { transform: scale(0.95); }
-        button.reset { background-color: #f44336; }
-        button.solve { background-color: #2196F3; }
+        .btn-primary {
+            background-color: var(--text-primary);
+            color: var(--bg-color);
+        }
 
-        .status {
-            font-size: 1.2rem;
-            font-weight: bold;
-            height: 30px;
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--text-primary);
+            border: 1px solid rgba(0,0,0,0.1);
         }
         
-        .success { color: #4CAF50; }
-        .error { color: #ff5252; }
+        @media (prefers-color-scheme: dark) {
+            .btn-secondary { border-color: rgba(255,255,255,0.2); }
+        }
 
+        .btn-secondary:hover {
+            background-color: rgba(0,0,0,0.05);
+        }
+
+        /* --- Footer --- */
+        footer {
+            margin-top: auto;
+            padding: 40px 20px;
+            text-align: center;
+            width: 100%;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            footer { border-top: 1px solid rgba(255,255,255,0.05); }
+        }
+
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-bottom: 20px;
+        }
+
+        .social-icon {
+            width: 24px;
+            height: 24px;
+            fill: var(--text-secondary);
+            transition: fill 0.3s ease, transform 0.3s ease;
+        }
+
+        .social-link:hover .social-icon {
+            fill: var(--text-primary);
+            transform: translateY(-3px);
+        }
+
+        .credits {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .credits span {
+            color: var(--danger-color);
+            display: inline-block;
+            animation: heartbeat 1.5s ease-in-out infinite;
+        }
+
+        .copyright {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            opacity: 0.7;
+            margin-top: 8px;
+        }
+
+        /* --- Animations --- */
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.5); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes pulseRed {
+            0% { background-color: rgba(255, 59, 48, 0.4); }
+            50% { background-color: rgba(255, 59, 48, 0.7); }
+            100% { background-color: rgba(255, 59, 48, 0.4); }
+        }
+
+        @keyframes heartbeat {
+            0% { transform: scale(1); }
+            10% { transform: scale(1.1); }
+            20% { transform: scale(1); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
 
-    <div class="game-container">
-        <h1>8-Queens Challenge</h1>
-        <p>Place 8 queens so no two queens attack each other.</p>
-        
-        <div id="status" class="status">Queens placed: 0/8</div>
+    <main>
+        <header>
+            <h1>8 Queens</h1>
+            <p class="subtitle">Place 8 queens so none attack each other.</p>
+        </header>
 
-        <div class="board" id="board">
+        <div id="status" class="status-pill">
+            Queens placed: 0/8
+        </div>
+
+        <div class="board-wrapper">
+            <div class="board" id="board">
+                <!-- Squares generated by JS -->
             </div>
+        </div>
 
         <div class="controls">
-            <button class="reset" onclick="resetBoard()">Clear Board</button>
-            <button class="solve" onclick="solveGame()">Auto Solve</button>
+            <button class="btn-secondary" onclick="resetBoard()">
+                <!-- Reset Icon -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                    <path d="M3 3v5h5"/>
+                </svg>
+                Clear
+            </button>
+            <button class="btn-primary" onclick="solveGame()">
+                <!-- Magic Wand Icon -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m19 2 2 2-2 2-2-2 2-2Z"/>
+                    <path d="m5 5 2 2-2 2-2-2 2-2Z"/>
+                    <path d="m15 6 3 4-2.5 2 2 3.5-3.5 1-2.5 3-2.5-3-3.5-1 2-3.5-2.5-2 3-4Z"/>
+                </svg>
+                Auto Solve
+            </button>
         </div>
-    </div>
+    </main>
+
+    <footer>
+        <div class="social-links">
+            <a href="https://www.linkedin.com/in/rajatkumar7/" target="_blank" aria-label="LinkedIn" class="social-link">
+                <svg class="social-icon" viewBox="0 0 24 24">
+                    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                </svg>
+            </a>
+            <a href="https://github.com/rajatkumar1011" target="_blank" aria-label="GitHub" class="social-link">
+                <svg class="social-icon" viewBox="0 0 24 24">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+            </a>
+        </div>
+        <div class="credits">
+            Made with <span>&hearts;</span> by Rajat Kumar
+        </div>
+        <div class="copyright">
+            Copyright © 2026 Rajat Kumar. All Rights Reserved.
+        </div>
+    </footer>
 
     <script>
         const boardSize = 8;
@@ -121,6 +374,7 @@
 
         // Initialize Board
         function initBoard() {
+            if (!boardElement) return;
             boardElement.innerHTML = '';
             for (let row = 0; row < boardSize; row++) {
                 for (let col = 0; col < boardSize; col++) {
@@ -129,6 +383,7 @@
                     square.className = `square ${isDark ? 'black' : 'white'}`;
                     square.dataset.row = row;
                     square.dataset.col = col;
+                    // Support both click and touch for better mobile responsiveness
                     square.onclick = () => handleSquareClick(row, col);
                     boardElement.appendChild(square);
                 }
@@ -176,35 +431,54 @@
         // Update UI based on state
         function updateBoardVisuals() {
             // clear previous icons and classes
-            const squares = document.querySelectorAll('.square');
-            squares.forEach(sq => {
-                sq.textContent = '';
+            // Using children is more efficient than querySelectorAll
+            const squares = boardElement.children; 
+            if (!squares || squares.length === 0) return;
+
+            for (let sq of squares) {
+                sq.innerHTML = ''; // Clear SVG
                 sq.classList.remove('conflict');
-            });
+            }
 
             const conflicts = checkConflicts();
             let isWin = (queens.length === 8 && conflicts.size === 0);
 
+            // Vector Queen Icon
+            const queenSvg = `
+                <svg class="queen-icon" viewBox="0 0 45 45" xmlns="http://www.w3.org/2000/svg">
+                    <g fill-rule="evenodd" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 12.5l5 3 5-3 5 3 5-3 5 3-5 23h-20z" fill="currentColor"/>
+                        <path d="M16 15.5l6.5-6.5 6.5 6.5" fill="none"/>
+                        <circle cx="8" cy="9" r="2.5" stroke="none" fill="currentColor"/>
+                        <circle cx="13" cy="15.5" r="2" stroke="none" fill="currentColor"/>
+                        <circle cx="23" cy="9" r="2.5" stroke="none" fill="currentColor"/>
+                        <circle cx="33" cy="15.5" r="2" stroke="none" fill="currentColor"/>
+                        <circle cx="38" cy="9" r="2.5" stroke="none" fill="currentColor"/>
+                    </g>
+                </svg>`;
+
             queens.forEach(q => {
                 const index = q.row * 8 + q.col;
-                const sq = squares[index];
-                sq.textContent = '♛'; // Queen Unicode
-                
-                if (conflicts.has(`${q.row},${q.col}`)) {
-                    sq.classList.add('conflict');
+                if (index >= 0 && index < squares.length) {
+                    const sq = squares[index];
+                    sq.innerHTML = queenSvg;
+                    
+                    if (conflicts.has(`${q.row},${q.col}`)) {
+                        sq.classList.add('conflict');
+                    }
                 }
             });
 
             // Update Status Text
             if (isWin) {
-                statusElement.textContent = "You Won! Solution Found.";
-                statusElement.className = "status success";
+                statusElement.textContent = "Solution Found!";
+                statusElement.className = "status-pill success";
             } else if (conflicts.size > 0) {
-                statusElement.textContent = "Conflict detected!";
-                statusElement.className = "status error";
+                statusElement.textContent = "Conflict Detected";
+                statusElement.className = "status-pill error";
             } else {
                 statusElement.textContent = `Queens placed: ${queens.length}/8`;
-                statusElement.className = "status";
+                statusElement.className = "status-pill";
             }
         }
 
@@ -215,13 +489,19 @@
 
         // Backtracking Algorithm for "Auto Solve"
         function solveGame() {
-            resetBoard();
+            // Reset and start from fresh
+            queens = [];
             
             // Helper function for recursion
             function placeQueen(row) {
                 if (row === boardSize) return true; // Found solution
 
-                for (let col = 0; col < boardSize; col++) {
+                // Randomize start column to give different solutions occasionally
+                let startCol = Math.floor(Math.random() * boardSize);
+                
+                for (let i = 0; i < boardSize; i++) {
+                    let col = (startCol + i) % boardSize;
+                    
                     // Check if safe
                     let safe = true;
                     for (let q of queens) {
@@ -240,13 +520,18 @@
                 return false;
             }
 
-            placeQueen(0);
+            // Run solver
+            const found = placeQueen(0);
+            
+            // If something went wrong and no solution found (impossible for 8-queens), ensure visuals update
+            if (!found) {
+                queens = [];
+            }
             updateBoardVisuals();
         }
 
         // Start
         initBoard();
-
     </script>
 </body>
 </html>
